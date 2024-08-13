@@ -62,8 +62,20 @@ exports.userBackLogin = async (req, res, next) => {
 // 後台會員變更密碼
 exports.userBackhandPassWord = async (req, res, next) => {
   try {
-    const { oldPassWord, newPassWord, newPassWordAgain, token } = req.body;
-    const data = { oldPassWord, newPassWord, newPassWordAgain, token };
+    const { oldPassWord, newPassWord, newPassWordAgain } = req.body;
+    const data = { oldPassWord, newPassWord, newPassWordAgain };
+
+    // 抓JWT
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+
+    let userBackAccount = await jwt.verify(token, process.env.JWT_SECRET, async (err, user) => {
+      let userAccount = user?.account
+      // 查使用者是否為own
+      return await UserBack.findOne({ userAccount })
+    })
+
+    if (['own'].includes(userBackAccount?.permission)) return next(appError(401, 'do_not_change_main_admin_account', next));
 
     const userBack = await UserBack.findOne({ token }).select('+password');
     const oldPassWordCorrect = await bcryptjs.compare(
@@ -144,6 +156,15 @@ exports.uploadUserPermission = async (req, res, next) => {
     const editUser = await UserBack.findByIdAndUpdate(id, {
       permission: permission,
     });
+    // 抓JWT
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
+    let userBackAccount = await jwt.verify(token, process.env.JWT_SECRET, async (err, user) => {
+      let userAccount = user?.account
+      // 查使用者是否為own , admin
+      return await UserBack.findOne({ userAccount })
+    })
+    if (!['own', 'admin'].includes(userBackAccount?.permission)) return next(appError(400, 'verification_failed', next));
 
     successHandler(res, 'success', editUser);
   } catch (err) {

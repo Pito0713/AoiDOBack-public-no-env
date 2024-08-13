@@ -27,7 +27,7 @@ exports.register = async (req, res, next) => {
 
     const userRepeat = await User.findOne({ account });
     if (userRepeat) {
-      successHandler(res, 'duplicate_user_account', '');
+      return next(appError(400, 'duplicate_user_account', next));
     }
     // 產生該帳號的token憑證, 用env中的金鑰
     const token = jwt.sign({ account: account }, process.env.JWT_SECRET);
